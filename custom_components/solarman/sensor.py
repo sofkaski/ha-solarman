@@ -83,7 +83,7 @@ class SolarmanIntervalSensor(SolarmanSensorEntity):
 class SolarmanSensor(SolarmanSensorEntity):
     def __init__(self, coordinator, sensor, battery_nominal_voltage, battery_life_cycle_rating):
         super().__init__(coordinator, _PLATFORM, sensor)
-        self._sensor_ensure_increasing = "ensure_increasing" in sensor
+        self._sensor_ensure_increasing = sensor.get("ensure_increasing", False)
         if "name" in sensor and sensor["name"] == "Battery":
             self._attr_extra_state_attributes = self._attr_extra_state_attributes | { "Nominal Voltage": battery_nominal_voltage, "Life Cycle Rating": battery_life_cycle_rating }
 
