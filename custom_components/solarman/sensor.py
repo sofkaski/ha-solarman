@@ -97,10 +97,12 @@ class SolarmanRestoreSensor(SolarmanSensor, RestoreSensor):
             self._attr_native_unit_of_measurement = last_sensor_data.native_unit_of_measurement
 
     def set_state(self, state):
+        _LOGGER.debug(f"set_state (1): ensure_increasing: {self._sensor_ensure_increasing}, native_value: {self._attr_native_value}, state: {state}")
         if self._sensor_ensure_increasing and self._attr_native_value and self._attr_native_value > state > 0:
             return
 
         self._attr_state = self._attr_native_value = state
+        _LOGGER.debug(f"set_state (2): _attr_sate: {self._attr_state}, native_value: {self._attr_native_value}, state: {state}")
 
 class SolarmanBatterySensor(SolarmanSensor):
     def __init__(self, coordinator, sensor, battery_nominal_voltage, battery_life_cycle_rating):
