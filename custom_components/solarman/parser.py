@@ -158,6 +158,7 @@ class ParameterParser:
         return keyvaluepairs[0]["value"]
 
     def do_validate(self, key, value, rule):
+        _LOGGER.debug(f"do_validate: key: {key}, value: {value}, rule: {rule}")
         if "min" in rule:
             if rule["min"] > value:
                 if "invalidate_all" in rule:
