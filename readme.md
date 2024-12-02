@@ -16,13 +16,14 @@
 - [Supported Devices](https://github.com/davidrapan/ha-solarman/wiki/Supported-Devices)
 
 > [!NOTE]  
-> It's still 🚧 work in progress but currently very 🐎 stable 😉  
-> If you are curious about what's planned next look into [🪧 Milestones](https://github.com/davidrapan/ha-solarman/milestones)  
-> Use [💬 Discussions](https://github.com/davidrapan/ha-solarman/discussions) for 🙏 Q&A and 💡 Development Planning, etc. and leave [🚩 Issues](https://github.com/davidrapan/ha-solarman/issues) for 🐞 bug reporting, 🎁 feature requests and such...
+> - It's still 🚧 work in progress  but currently very 🐎 stable 😉  
+> - If you are curious about what's planned next look into [🪧 Milestones](https://github.com/davidrapan/ha-solarman/milestones)  
+> - Use [💬 Discussions](https://github.com/davidrapan/ha-solarman/discussions) for 🙏 Q&A, 🎁 feature requests and 💡 Development Planning, etc. and leave [🚩 Issues](https://github.com/davidrapan/ha-solarman/issues) for 🐞 bug reporting, issues and such...
 
 > [!IMPORTANT]  
-> Inspired by [StephanJoubert/home_assistant_solarman](https://github.com/StephanJoubert/home_assistant_solarman) but w/ a lot of [✍ crucial changes & new features](https://github.com/davidrapan/ha-solarman/wiki#-changes)  
-> Implemented using asynchronous [pysolarmanv5](https://github.com/jmccrohan/pysolarmanv5) and fetching through [DataUpdateCoordinator](https://developers.home-assistant.io/docs/integration_fetching_data/) + incorporates many more fixes and improvements and also up to date features of HA (while trying to fully preserve backward compatibility)
+> - Read about [✍ crucial changes & new features](https://github.com/davidrapan/ha-solarman/wiki#-changes)  
+> - Made for Home Assistant w/ fetching through [DataUpdateCoordinator](https://developers.home-assistant.io/docs/integration_fetching_data/)  
+> - Implemented using asynchronous [pysolarmanv5](https://github.com/jmccrohan/pysolarmanv5) and even supports Ethernet Loggers
 
 ## 🔨 Installation
 
@@ -31,7 +32,7 @@
 ### 🪛 HACS (Manually)
 - Follow the link [here](https://hacs.xyz/docs/faq/custom_repositories/)
 - Add custom repository: https://github.com/davidrapan/ha-solarman
-- Select type of the category: integration
+- Select type of the category: **integration**
 - Find newly added Solarman, open it and then click on the DOWNLOAD button
 
 ### 🔧 Manually
@@ -41,3 +42,6 @@
 <a href="https://github.com/davidrapan/ha-solarman/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=davidrapan/ha-solarman" />
 </a>
+<br>
+<br>
+<div align="right">Inspired by <a href="https://github.com/StephanJoubert/home_assistant_solarman">StephanJoubert/home_assistant_solarman</div>
