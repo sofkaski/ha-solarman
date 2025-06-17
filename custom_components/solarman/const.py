@@ -1,6 +1,6 @@
 from re import compile
-from datetime import timedelta
 from aiohttp import BasicAuth, FormData
+from datetime import timedelta
 
 DOMAIN = "solarman"
 
@@ -106,7 +106,7 @@ PARAM_ = { CONF_MOD: CONF_MOD, CONF_MPPT: CONF_MPPT, CONF_PHASE: "l", CONF_PACK:
 # - Configuration flow
 #
 TIMINGS_INTERVAL = 5
-TIMINGS_INTERVAL_SCALE = 1
+TIMINGS_INTERVAL_SCALE = 12
 TIMINGS_UPDATE_INTERVAL = timedelta(seconds = TIMINGS_INTERVAL * TIMINGS_INTERVAL_SCALE)
 
 # Connection resilience (pysolarman)
