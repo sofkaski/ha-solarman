@@ -191,11 +191,13 @@ class Solarman:
         while True:
             try:
                 data = await self._reader.read(1024)
-            except ConnectionResetError:
-                _LOGGER.debug(f"[{self.host}] Connection is reset by the peer. Will try to restart the connection")
+            except ConnectionError as e:
+                _LOGGER.debug(f"[{self.host}] Connection error {e}. Will try to restart the connection")
+                await self._close()
                 break
             if data == b"":
                 _LOGGER.debug(f"[{self.host}] Connection closed. Will try to restart the connection")
+                await self._close()
                 break
             if self._handle_frame is not None and not await self._handle_frame(data):
                 # Skip...
@@ -255,10 +257,12 @@ class Solarman:
 
         try:
             await self._write(frame)
+            read_timeout = self.timeout * 3 - 1
             while True:
                 try:
-                    return await asyncio.wait_for(self._data_queue.get(), self.timeout * 3 - 1)
+                    return await asyncio.wait_for(self._data_queue.get(), read_timeout)
                 except TimeoutError:
+                    _LOGGER.debug(f"[{self.host}] Timeout while receiving in _send_receive_frame after {read_timeout} seconds.")
                     await self._close()
         finally:
             self._data_event.clear()
