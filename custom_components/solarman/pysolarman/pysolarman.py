@@ -189,11 +189,13 @@ class Solarman:
         while True:
             try:
                 data = await self._reader.read(1024)
-            except ConnectionResetError:
-                _LOGGER.debug(f"[{self.host}] Connection is reset by the peer. Will try to restart the connection")
+            except ConnectionError as e:
+                _LOGGER.debug(f"[{self.host}] Connection error {e}. Will try to restart the connection")
+                await self._close()
                 break
             if data == b"":
                 _LOGGER.debug(f"[{self.host}] Connection closed. Will try to restart the connection")
+                await self._close()
                 break
             if self._handle_frame is not None and not await self._handle_frame(data):
                 # Skip...
