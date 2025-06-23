@@ -191,29 +191,43 @@ class Solarman:
                 await self._write(response_frame)
         return do_continue
 
-    async def _keeper_loop(self):
-        while True:
-            try:
-                data = await self._reader.read(1024)
-            except ConnectionError as e:
-                _LOGGER.debug(f"[{self.host}] Connection error {e}. Will try to restart the connection")
-                await self._close()
-                break
-            if data == b"":
-                _LOGGER.debug(f"[{self.host}] Connection closed. Will try to restart the connection")
-                await self._close()
-                break
-            if self._handle_frame is not None and not await self._handle_frame(data):
-                # Skip...
-                continue
-            if not self._data_event.is_set():
-                _LOGGER.debug(f"[{self.host}] Data received too late")
-                continue
-            if not self._data_queue.empty():
-                _ = self._data_queue.get_nowait()
-            self._data_queue.put_nowait(data)
-            self._data_event.clear()
-        self._keeper = create_task(self._open_connection())
+    async def _keeper_loop(self) -> None:
+        try:
+            while True:
+                try:
+                    data = await self._reader.read(1024)
+                except (ConnectionError, ConnectionResetError, asyncio.IncompleteReadError, OSError) as e:
+                    _LOGGER.debug(f"[{self.host}] Read error: {e!r}. Will restart the connection.")
+                    break
+
+                if data == b"":
+                    _LOGGER.debug(f"[{self.host}] Empty response in keeper loop. Connection closed by the peer. Will restart the connection.")
+                    break
+
+                if self._handle_frame is not None:
+                    try:
+                        handled = await self._handle_frame(data)
+                        if not handled:
+                            continue  # Skip to next loop iteration
+                    except Exception as e:
+                        _LOGGER.warning(f"[{self.host}] Exception in frame handler: {e!r}")
+                        continue
+
+                if not self._data_event.is_set():
+                    _LOGGER.debug(f"[{self.host}] Late data received — skipping")
+                    continue
+
+                if not self._data_queue.empty():
+                    _ = self._data_queue.get_nowait()
+                self._data_queue.put_nowait(data)
+                self._data_event.clear()
+        finally:
+            await self.close()
+
+            # Reconnect — spawn a new connection+keeper if needed
+            _LOGGER.info(f"[{self.host}] Reconnecting after disconnect")
+            await asyncio.sleep(1)
+            await self._open_connection()  # let that one create a new keeper
 
     @throttle(0.2)
     async def _open_connection(self) -> None:
@@ -354,6 +368,12 @@ class Solarman:
         async with self._lock:
             if self.connected:
                 self._keeper.cancel()
+                try:
+                  await self._keeper
+                except asyncio.CancelledError:
+                  _LOGGER.debug(f"[{self.host}] Keeper task cancelled")
+                except Exception as e:
+                  _LOGGER.warning(f"[{self.host}] Error while cancelling keeper task: {e!r}")
 
             self._keeper = None
 
