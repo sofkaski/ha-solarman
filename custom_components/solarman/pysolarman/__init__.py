@@ -19,6 +19,10 @@ from ..common import retry, throttle, create_task, format
 
 _LOGGER = getLogger(__name__)
 
+MAX_RETRIES = 4
+INITIAL_BACKOFF = 3  # seconds
+MAX_BACKOFF = 24     # seconds
+
 PROTOCOL = types.SimpleNamespace()
 PROTOCOL.CONTROL_CODE = types.SimpleNamespace()
 PROTOCOL.CONTROL_CODE.HANDSHAKE = 0x41
@@ -213,18 +217,39 @@ class Solarman:
 
     @throttle(0.2)
     async def _open_connection(self) -> None:
-        try:
-            self._reader, self._writer = await asyncio.wait_for(asyncio.open_connection(self.host, self.port), self.timeout)
-            self._keeper = create_task(self._keeper_loop())
-            if self._data_event.is_set():
-                _LOGGER.debug(f"[{self.host}] Successful reconnection! Data expected. Will retry the last request")
-                await self._write(self._last_frame)
-            else:
-                _LOGGER.debug(f"[{self.host}] Successful connection!")
-        except Exception as e:
-            if self._last_frame is None:
-                raise ConnectionError("Cannot open connection") from e
-            await self._open_connection()
+
+        retries = 0
+        backoff = INITIAL_BACKOFF
+
+        while retries < MAX_RETRIES:
+            try:
+                _LOGGER.debug(f"[{self.host}] Attempting connection (try {retries + 1}/{MAX_RETRIES})...")
+                self._reader, self._writer = await asyncio.wait_for(
+                    asyncio.open_connection(self.host, self.port),
+                    self.timeout
+                )
+                self._keeper = asyncio.create_task(self._keeper_loop())
+
+                if self._data_event.is_set():
+                    _LOGGER.debug(f"[{self.host}] Successful reconnection! Data expected. Retrying last request.")
+                    await self._write(self._last_frame)
+                else:
+                    _LOGGER.debug(f"[{self.host}] Connected successfully.")
+                return  # Success
+
+            except Exception as e:
+                _LOGGER.warning(f"[{self.host}] Connection attempt failed: {e!r}")
+
+                retries += 1
+                if retries >= MAX_RETRIES or self._last_frame is None:
+                    raise ConnectionError(f"[{self.host}] Cannot open connection after {retries} attempts.") from e
+
+                _LOGGER.info(f"[{self.host}] Retrying in {backoff} seconds...")
+                await asyncio.sleep(backoff)
+                backoff = min(backoff * 2, MAX_BACKOFF)
+
+        # Extra safeguard (should not be reached)
+        raise ConnectionError(f"[{self.host}] Exhausted retries without success.")
 
     async def _close(self) -> None:
         if self._writer:
