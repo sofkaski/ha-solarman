@@ -222,7 +222,7 @@ class Solarman:
                 self._data_queue.put_nowait(data)
                 self._data_event.clear()
         finally:
-            await self.close()
+            await self._close()
 
             # Reconnect — spawn a new connection+keeper if needed
             _LOGGER.info(f"[{self.host}] Reconnecting after disconnect")
@@ -243,6 +243,8 @@ class Solarman:
                     self.timeout
                 )
                 self._keeper = asyncio.create_task(self._keeper_loop())
+                if self._keeper:
+                    _LOGGER.debug(f"[{self.host}] Created a new connection keeper: {self._keeper.get_name()}")
 
                 if self._data_event.is_set():
                     _LOGGER.debug(f"[{self.host}] Successful reconnection! Data expected. Retrying last request.")
@@ -252,13 +254,13 @@ class Solarman:
                 return  # Success
 
             except Exception as e:
-                _LOGGER.warning(f"[{self.host}] Connection attempt failed: {e!r}")
+                _LOGGER.debug(f"[{self.host}] Connection attempt failed: {e!r}")
 
                 retries += 1
                 if retries >= MAX_RETRIES or self._last_frame is None:
                     raise ConnectionError(f"[{self.host}] Cannot open connection after {retries} attempts.") from e
 
-                _LOGGER.info(f"[{self.host}] Retrying in {backoff} seconds...")
+                _LOGGER.debug(f"[{self.host}] Retrying in {backoff} seconds...")
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2, MAX_BACKOFF)
 
@@ -266,21 +268,41 @@ class Solarman:
         raise ConnectionError(f"[{self.host}] Exhausted retries without success.")
 
     async def _close(self) -> None:
-        if self._writer:
+        if self._writer is not None:
             try:
+                # Trigger write machinery and possible errors without sending actual data
                 await self._write(b"")
             except (ConnectionError, TimeoutError) as e:
-                _LOGGER.debug(f"[{self.host}] {e!r} can be during closing ignored")
-
+                _LOGGER.debug(f"[{self.host}] Ignored during close (write): {e!r}")
+            except Exception as e:
+                _LOGGER.debug(f"[{self.host}] Unexpected error during close (write): {e!r}")
             try:
                 self._writer.close()
                 await self._writer.wait_closed()
-            except (AttributeError, OSError) as e: # OSError happens when is host unreachable
-                _LOGGER.debug(f"[{self.host}] {e!r} can be during closing ignored")
+            except (AttributeError, OSError) as e:
+                # Happens if socket is already half-broken or not properly initialized
+                _LOGGER.debug(f"[{self.host}] Ignored during close (close/wait_closed): {e!r}")
+            except Exception as e:
+                _LOGGER.debug(f"[{self.host}] Unexpected error during close (write): {e!r}")
+            finally:
+                self._writer = None
 
-            self._writer = None
+        if self._reader is not None:
+            self._reader = None
 
-        self._reader = None
+        if hasattr(self, "_keeper") and self._keeper:
+            _LOGGER.debug(f"[{self.host}] Closing connection keeper: {self._keeper.get_name()}")
+            if not self._keeper.done():
+                self._keeper.cancel()
+                try:
+                    await self._keeper
+                except asyncio.CancelledError:
+                    _LOGGER.debug(f"[{self.host}] Keeper task cancelled")
+                except Exception as e:
+                    _LOGGER.warning(f"[{self.host}] Error while cancelling keeper task: {e!r}")
+            self._keeper = None
+
+        _LOGGER.debug(f"[{self.host}] Connection closed and cleaned up.")
 
     @throttle(0.1)
     @log_call("SENT")
